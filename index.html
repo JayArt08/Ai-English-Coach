@@ -133,23 +133,12 @@ const SOUND_TIPS = [
 
 // ─── API ────────────────────────────────────────────────────────────────
 async function callAI(system, userMsg, apiKey) {
-  if (!apiKey) throw new Error("No API key. Tap ⚙ and enter your Gemini key.");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const combined = system + "\n\nUser input: " + userMsg;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: combined }] }],
-      generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
-    }),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error("Gemini error: " + data.error.message);
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const prompt = system + "\n\nUser input: " + userMsg;
+  const response = await puter.ai.chat(prompt, { model: "gemini-2.0-flash" });
+  const raw = (typeof response === "string" ? response : response?.message?.content || response?.text || JSON.stringify(response));
   const clean = raw.replace(/```json|```/g,"").trim();
   try { return JSON.parse(clean); }
-  catch(e) { throw new Error("Response parse failed. Try again."); }
+  catch(e) { throw new Error("Could not understand AI response. Please try again."); }
 }
 
 const GRAMMAR_PROMPT = `You are a friendly English coach for Indian beginners. Correct the user's text and explain mistakes simply.
@@ -780,9 +769,9 @@ const TABS = [
 
 // ─── APP ROOT ────────────────────────────────────────────────────────────
 function App() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("ec_key") || "");
+  const [apiKey, setApiKey] = useState("no-key-needed");
   const [keyInput, setKeyInput] = useState("");
-  const [ready, setReady] = useState(() => !!localStorage.getItem("ec_key"));
+  const [ready, setReady] = useState(true);
   const [tab, setTab] = useState("practice");
 
   const handleSetup = (key) => {
@@ -876,5 +865,6 @@ document.head.appendChild(styleEl);
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
+<script src="https://js.puter.com/v2/"></script>
 </body>
 </html>
