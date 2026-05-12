@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b0b10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>English Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root {
+  --bg: #0b0b10;
+  --s1: #13131a;
+  --s2: #1a1a24;
+  --border: #26262f;
+  --border2: #32323e;
+  --accent: #f0a500;
+  --accent2: #ffc84a;
+  --accent-dim: rgba(240,165,0,0.1);
+  --accent-glow: rgba(240,165,0,0.15);
+  --green: #34d399;
+  --green-dim: rgba(52,211,153,0.1);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.1);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96,165,250,0.1);
+  --purple: #a78bfa;
+  --t1: #f0ece4;
+  --t2: #9090a0;
+  --t3: #50505e;
+  --font: 'Outfit', sans-serif;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); font-family: var(--font); color: var(--t1); overflow: hidden; }
+#root { height: 100%; }
+input, textarea, button { font-family: var(--font); }
+::placeholder { color: var(--t3); }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ─── DATA ───────────────────────────────────────────────────────────────
+const TENSES = [
+  { name:"Present Simple", color:"#60a5fa", use:"Habits, facts, always true", structure:"Subject + Verb (+s/es for he/she/it)",
+    pos:["I work every day.","She plays cricket on Sunday.","He speaks English well."],
+    neg:["I do not work here.","She does not play.","He does not speak Hindi."],
+    q:["Do you work here?","Does she play?","Does he speak?"],
+    keys:["always","every day","usually","often","never","sometimes"] },
+  { name:"Present Continuous", color:"#34d399", use:"Happening RIGHT NOW", structure:"Subject + am/is/are + Verb-ing",
+    pos:["I am eating lunch now.","She is working on a project.","They are playing outside."],
+    neg:["I am not eating.","She is not working today.","They are not playing."],
+    q:["Are you eating?","Is she working?","Are they playing?"],
+    keys:["now","right now","at the moment","currently","today","Look!"] },
+  { name:"Past Simple", color:"#f0a500", use:"Finished action in the past", structure:"Subject + Verb (past form)",
+    pos:["I ate rice yesterday.","She worked late last night.","He played cricket last Sunday."],
+    neg:["I did not eat rice.","She did not work yesterday.","He did not play."],
+    q:["Did you eat?","Did she work?","Did he play?"],
+    keys:["yesterday","last week","last year","ago","in 2020","when I was young"] },
+  { name:"Past Continuous", color:"#fb923c", use:"Was happening at a time in the past", structure:"Subject + was/were + Verb-ing",
+    pos:["I was eating when you called.","She was working at 8 PM.","They were playing in the rain."],
+    neg:["I was not eating.","She was not working.","They were not playing."],
+    q:["Were you eating?","Was she working?","Were they playing?"],
+    keys:["when","while","at that time","at 8 PM","all morning"] },
+  { name:"Present Perfect", color:"#a78bfa", use:"Past event with result TODAY", structure:"Subject + have/has + past participle",
+    pos:["I have eaten already.","She has finished the work.","He has lived here for 5 years."],
+    neg:["I have not eaten yet.","She has not finished.","He has not called."],
+    q:["Have you eaten?","Has she finished?","Have they arrived?"],
+    keys:["already","yet","just","ever","never","for","since","recently"] },
+  { name:"Future – will", color:"#34d399", use:"Decisions made now, promises", structure:"Subject + will + Verb",
+    pos:["I will call you tomorrow.","She will help you.","It will rain today."],
+    neg:["I will not call.","She will not come.","It will not rain."],
+    q:["Will you call me?","Will she help?","Will it rain?"],
+    keys:["tomorrow","next week","soon","in the future","I think","probably"] },
+  { name:"Future – going to", color:"#2dd4bf", use:"Already planned, or obvious future", structure:"Subject + am/is/are + going to + Verb",
+    pos:["I am going to start a business.","She is going to study tonight.","It is going to rain — look at those clouds!"],
+    neg:["I am not going to give up.","He is not going to come."],
+    q:["Are you going to eat?","Is she going to work?"],
+    keys:["I have a plan","I decided already","Look — it's obvious"] },
+];
+
+const TIPS = [
+  { icon:"🔵", title:"A vs An", body:"Use 'a' before consonant sounds, 'an' before vowel sounds.", ex:'"a mango" · "an apple" · "an hour"' },
+  { icon:"🟢", title:"He/She adds -s", body:"For he, she, it — add -s or -es to the verb in Present Simple.", ex:'"I eat" but "She eats" · "I go" but "He goes"' },
+  { icon:"🟡", title:"Do vs Does", body:"Use 'do' with I/you/we/they. Use 'does' with he/she/it.", ex:'"Do you work?" · "Does she work?"' },
+  { icon:"🔴", title:"Was vs Were", body:"'Was' for I/he/she/it. 'Were' for you/we/they.", ex:'"I was tired" · "They were happy"' },
+  { icon:"🟣", title:"Can = Ability", body:"Use 'can' for ability. Never say 'I can to do' — no 'to' after can.", ex:'"I can swim" · not "I can to swim"' },
+  { icon:"🟠", title:"Sentence order", body:"Always: Subject → Verb → Object. Never put the object first.", ex:'"I eat rice" · not "Rice I eat"' },
+  { icon:"⚪", title:"Good vs Well", body:"'Good' describes nouns. 'Well' describes actions (verbs).", ex:'"Good work" · "You did well"' },
+  { icon:"🔵", title:"Since vs For", body:"'Since' = a starting point. 'For' = a duration.", ex:'"Since 2020" · "For 3 years"' },
+];
+
+const SPEAK_TASKS = [
+  { level:"Easy",   text:"My name is Jay and I am a 3D artist.", focus:"Clear vowels and word endings" },
+  { level:"Easy",   text:"I want to improve my English every day.", focus:"The 'W' sound — not 'V'" },
+  { level:"Easy",   text:"Can you please help me with this?", focus:"Rising voice at end for questions" },
+  { level:"Medium", text:"I have been working on this project for three weeks.", focus:"The 'TH' sound and stress" },
+  { level:"Medium", text:"She usually goes to the office by metro.", focus:"'Usually' stress: yoo-zhoo-uh-lee" },
+  { level:"Medium", text:"Despite the challenges, we completed the task on time.", focus:"Stress on 'despite' and 'completed'" },
+  { level:"Hard",   text:"I would like to schedule a meeting to discuss the requirements.", focus:"Formal tone — stress key words" },
+  { level:"Hard",   text:"Our portfolio demonstrates experience in real-time asset creation.", focus:"Technical words — speak each syllable" },
+];
+
+const SOUND_TIPS = [
+  { sound:"V vs W", color:"#f0a500",
+    wrong:'Say "very" not "wery"',
+    tip:'For V: bite your lower lip gently and push air out. For W: round your lips like "oo" then open.' },
+  { sound:"TH sound", color:"#a78bfa",
+    wrong:'Say "this" not "dis"',
+    tip:'Stick the tip of your tongue lightly between your front teeth, then blow air. Like a gentle "d" but with tongue between teeth.' },
+  { sound:"Final letters", color:"#f87171",
+    wrong:'Say "want" not "wan"',
+    tip:'Always finish the last sound of every word. Indian English often drops the final consonant. "eat" not "ea", "work" not "wor".' },
+  { sound:"Word stress", color:"#34d399",
+    wrong:'"pho-TO-graph" ❌  →  "PHO-to-graph" ✅',
+    tip:'Every long English word has one syllable you say LOUDER and LONGER. Practice: pho-to-GRAPH vs PHO-to-graph. The stress changes meaning.' },
+  { sound:"Question tone", color:"#60a5fa",
+    wrong:'Flat voice on questions',
+    tip:'For yes/no questions, your voice must GO UP at the end. "You coming?" ↗. For WH questions (what, where, why), voice goes DOWN ↘.' },
+];
+
+// ─── API ────────────────────────────────────────────────────────────────
+async function callAI(system, userMsg, apiKey) {
+  const key = window._GEMINI_KEY || apiKey;
+  if (!key || key === "no-key-needed") throw new Error("NOKEY");
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: system + "\n\nUser input: " + userMsg }] }],
+      generationConfig: { maxOutputTokens: 1000, temperature: 0.7 }
+    }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  try { return JSON.parse(raw.replace(/```json|```/g,"").trim()); }
+  catch(e) { throw new Error("Try again."); }
+}
+
+const GRAMMAR_PROMPT = `You are a friendly English coach for Indian beginners. Correct the user's text and explain mistakes simply.
+Respond ONLY in this JSON (no markdown):
+{"praise":"short warm sentence","corrected":"fully corrected text","mistakes":[{"wrong":"original word/phrase","right":"correct version","why":"simple explanation"}],"tip":"one easy grammar rule","score":7,"label":"Good effort!"}
+Empty mistakes array if perfect. Never use jargon. Max 4 mistakes.`;
+
+const SEARCH_PROMPT = `You are an English dictionary for Indian beginners learning from scratch.
+For a WORD: give meaning, word type, pronunciation hint, 3 examples, 3 synonyms, 2 antonyms.
+For a SENTENCE/PHRASE: explain meaning simply, when people use it, 2 similar sentences.
+Respond ONLY in this JSON (no markdown):
+{"kind":"word","input":"original","meaning":"plain simple meaning","wordType":"noun/verb/adjective/phrase","pronunciation":"how to say it simply","examples":["ex1","ex2","ex3"],"synonyms":["s1","s2","s3"],"antonyms":["a1","a2"],"tip":"one usage tip"}
+Keep everything simple — class 7 English level explanations.`;
+
+const SPEAK_PROMPT = `You are a pronunciation coach for Indian English learners.
+You get: TARGET (what they should say) and HEARD (what speech recognition picked up).
+Compare them and give encouraging, specific feedback.
+Respond ONLY in this JSON (no markdown):
+{"score":7,"label":"Good try!","praise":"warm 1-sentence encouragement","issues":[{"heard":"wrong word/phrase","expected":"correct version","tip":"how to say it right, very simple"}],"tip":"one overall pronunciation tip","perfect":false}
+Max 3 issues. Be encouraging even for low scores. If recognized matches well, set perfect:true, issues:[].`;
+
+// ─── SMALL COMPONENTS ───────────────────────────────────────────────────
+const Card = ({ children, style, glow }) => (
+  <div style={{
+    background:"var(--s1)", border:`1px solid ${glow ? "var(--accent)" : "var(--border)"}`,
+    borderRadius:"var(--radius)", overflow:"hidden",
+    boxShadow: glow ? "0 0 20px var(--accent-glow)" : "none",
+    ...style
+  }}>{children}</div>
+);
+
+const CardHeader = ({ children, accent }) => (
+  <div style={{
+    padding:"10px 16px", borderBottom:"1px solid var(--border)",
+    fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase",
+    color: accent || "var(--t3)",
+  }}>{children}</div>
+);
+
+const ScoreRing = ({ score }) => {
+  const c = score >= 8 ? "var(--green)" : score >= 5 ? "var(--accent)" : "var(--red)";
+  const pct = (score / 10) * 100;
+  const r = 26; const circ = 2 * Math.PI * r;
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+      <svg width={64} height={64} style={{ transform:"rotate(-90deg)" }}>
+        <circle cx={32} cy={32} r={r} fill="none" stroke="var(--border2)" strokeWidth={4}/>
+        <circle cx={32} cy={32} r={r} fill="none" stroke={c} strokeWidth={4}
+          strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)}
+          strokeLinecap="round" style={{ transition:"stroke-dashoffset 0.6s ease" }}/>
+        <text x={32} y={37} textAnchor="middle" fill={c} fontSize={16} fontWeight={700}
+          fontFamily="Outfit" style={{ transform:"rotate(90deg) translateY(-64px) translateX(-32px)" }}>
+          {score}
+        </text>
+      </svg>
+    </div>
+  );
+};
+
+const Chip = ({ children, color, onClick, small }) => (
+  <button onClick={onClick} style={{
+    padding: small ? "3px 10px" : "5px 12px",
+    borderRadius:20, border:`1px solid ${color || "var(--border2)"}40`,
+    background:`${color || "var(--border2)"}12`,
+    color: color || "var(--t2)",
+    fontSize: small ? 11 : 12, fontWeight:500, cursor: onClick ? "pointer" : "default",
+    fontFamily:"var(--font)",
+  }}>{children}</button>
+);
+
+const Btn = ({ children, onClick, disabled, variant="primary", style:s }) => {
+  const styles = {
+    primary: { background:"linear-gradient(135deg,#f0a500,#c87d00)", color:"#1a0e00", border:"none" },
+    ghost: { background:"transparent", color:"var(--t2)", border:"1px solid var(--border2)" },
+    danger: { background:"var(--red-dim)", color:"var(--red)", border:"1px solid rgba(248,113,113,0.3)" },
+    success: { background:"var(--green-dim)", color:"var(--green)", border:"1px solid rgba(52,211,153,0.3)" },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      ...styles[variant], padding:"12px 20px", borderRadius:"var(--radius-sm)",
+      fontSize:13, fontWeight:600, cursor:disabled?"not-allowed":"pointer",
+      opacity: disabled ? 0.4 : 1, fontFamily:"var(--font)",
+      display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+      transition:"opacity 0.15s, transform 0.1s",
+      ...s,
+    }}>{children}</button>
+  );
+};
+
+// ─── PRACTICE TAB ────────────────────────────────────────────────────────
+function PracticeTab({ apiKey }) {
+  const [text, setText] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const ref = useRef();
+
+  const check = async () => {
+    if (!text.trim() || loading) return;
+    setLoading(true); setError(""); setResult(null);
+    try { setResult(await callAI(GRAMMAR_PROMPT, text.trim(), apiKey)); }
+    catch(e) { setError("Something went wrong. Check your internet."); }
+    finally { setLoading(false); }
+  };
+
+  const reset = () => { setText(""); setResult(null); setError(""); ref.current?.focus(); };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {!result && (
+        <>
+          <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+            <div style={{ fontFamily:"'DM Serif Display'", fontSize:26, color:"var(--t1)", lineHeight:1.2 }}>Write anything.</div>
+            <div style={{ fontSize:13, color:"var(--t3)", marginTop:4 }}>Don't worry about mistakes. That's why we're here.</div>
+          </div>
+          <Card>
+            <textarea value={text} ref={ref} onChange={e=>setText(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&e.ctrlKey&&check()}
+              placeholder="Type a sentence, a message, or even what you said to someone today..."
+              style={{
+                width:"100%", minHeight:130, background:"transparent",
+                border:"none", outline:"none", padding:"16px",
+                fontSize:15, color:"var(--t1)", resize:"vertical",
+                lineHeight:1.7,
+              }}/>
+            <div style={{ padding:"10px 14px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:11, color:"var(--t3)" }}>{text.length} chars · Ctrl+Enter to check</span>
+              <Btn onClick={check} disabled={!text.trim()||loading} s={{ padding:"8px 20px" }}>
+                {loading ? "Checking…" : "Check →"}
+              </Btn>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {error && <div style={{ background:"var(--red-dim)", border:"1px solid rgba(248,113,113,0.3)", borderRadius:"var(--radius-sm)", padding:"12px 16px", color:"var(--red)", fontSize:13 }}>{error}</div>}
+
+      {loading && <LoadingCard text="Checking your English…" />}
+
+      {result && !loading && (
+        <>
+          {/* Praise + score */}
+          <Card>
+            <div style={{ padding:"18px 18px", display:"flex", gap:14, alignItems:"center" }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:"var(--t3)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.07em" }}>Coach</div>
+                <div style={{ fontSize:15, color:"var(--t1)", lineHeight:1.6, fontStyle:"italic" }}>"{result.praise}"</div>
+              </div>
+              <ScoreRing score={result.score} />
+            </div>
+          </Card>
+
+          {/* Corrected */}
+          <Card>
+            <CardHeader accent="var(--green)">✓ Corrected Version</CardHeader>
+            <div style={{ padding:"16px", fontSize:15, color:"var(--green)", lineHeight:1.7, fontStyle:"italic" }}>"{result.corrected}"</div>
+          </Card>
+
+          {/* Mistakes */}
+          {result.mistakes?.length > 0 && (
+            <Card>
+              <CardHeader accent="var(--accent)">Mistakes Explained</CardHeader>
+              <div style={{ padding:"12px", display:"flex", flexDirection:"column", gap:10 }}>
+                {result.mistakes.map((m,i) => (
+                  <div key={i} style={{ padding:"12px 14px", background:"var(--bg)", borderRadius:"var(--radius-sm)", borderLeft:"3px solid var(--accent)" }}>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", marginBottom:8 }}>
+                      <span style={{ fontSize:12, background:"var(--red-dim)", color:"var(--red)", padding:"2px 10px", borderRadius:20, textDecoration:"line-through" }}>{m.wrong}</span>
+                      <span style={{ color:"var(--t3)", fontSize:12 }}>→</span>
+                      <span style={{ fontSize:12, background:"var(--green-dim)", color:"var(--green)", padding:"2px 10px", borderRadius:20 }}>{m.right}</span>
+                    </div>
+                    <div style={{ fontSize:13, color:"var(--t2)", lineHeight:1.5 }}>{m.why}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Tip */}
+          <div style={{ background:"var(--accent-dim)", border:"1px solid rgba(240,165,0,0.2)", borderRadius:"var(--radius)", padding:"14px 16px", display:"flex", gap:10 }}>
+            <span style={{ fontSize:18 }}>💡</span>
+            <div>
+              <div style={{ fontSize:11, color:"var(--accent)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Grammar Tip</div>
+              <div style={{ fontSize:13, color:"var(--t1)", lineHeight:1.5 }}>{result.tip}</div>
+            </div>
+          </div>
+
+          <Btn variant="ghost" onClick={reset} s={{ width:"100%", padding:"12px" }}>+ Write another sentence</Btn>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── SEARCH TAB ─────────────────────────────────────────────────────────
+function SearchTab({ apiKey }) {
+  const [q, setQ] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [recent, setRecent] = useState([]);
+
+  const search = async (word) => {
+    const query = (word || q).trim();
+    if (!query || loading) return;
+    setLoading(true); setError(""); setResult(null); setQ(query);
+    try {
+      const r = await callAI(SEARCH_PROMPT, query, apiKey);
+      setResult(r);
+      setRecent(p => [query, ...p.filter(x=>x!==query)].slice(0,8));
+    } catch { setError("Could not find that. Try again."); }
+    finally { setLoading(false); }
+  };
+
+  const QUICK = ["ambitious","procrastinate","break a leg","nevertheless","What's up?","proficient"];
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <Card>
+        <div style={{ display:"flex", alignItems:"center" }}>
+          <span style={{ padding:"0 14px", fontSize:18, color:"var(--t3)" }}>🔍</span>
+          <input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&search()}
+            placeholder='Type any word or sentence…'
+            style={{ flex:1, background:"transparent", border:"none", outline:"none", padding:"16px 0", fontSize:15, color:"var(--t1)" }}/>
+          <Btn onClick={()=>search()} disabled={!q.trim()||loading} s={{ margin:8, padding:"9px 16px", borderRadius:8, fontSize:12 }}>
+            {loading ? "…" : "Search"}
+          </Btn>
+        </div>
+      </Card>
+
+      {!result && !loading && !error && (
+        <>
+          {recent.length > 0 && (
+            <div>
+              <div style={{ fontSize:11, color:"var(--t3)", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.07em" }}>Recent</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                {recent.map((r,i) => <Chip key={i} onClick={()=>search(r)}>{r}</Chip>)}
+              </div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize:11, color:"var(--t3)", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.07em" }}>Try these</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {QUICK.map((w,i) => <Chip key={i} color="var(--accent)" onClick={()=>search(w)}>{w}</Chip>)}
+            </div>
+          </div>
+        </>
+      )}
+
+      {error && <div style={{ background:"var(--red-dim)", border:"1px solid rgba(248,113,113,0.3)", borderRadius:"var(--radius-sm)", padding:"12px 16px", color:"var(--red)", fontSize:13 }}>{error}</div>}
+      {loading && <LoadingCard text="Looking it up…" />}
+
+      {result && !loading && (
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          <Card>
+            <div style={{ padding:"18px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" }}>
+                <div>
+                  <div style={{ fontSize:26, fontWeight:700, color:"var(--t1)", marginBottom:6 }}>{result.input}</div>
+                  {result.wordType && <Chip color="var(--accent)">{result.wordType}</Chip>}
+                </div>
+                {result.pronunciation && (
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:10, color:"var(--t3)", marginBottom:2 }}>SAY IT AS</div>
+                    <div style={{ fontSize:17, color:"var(--accent)", fontStyle:"italic", fontWeight:300 }}>{result.pronunciation}</div>
+                  </div>
+                )}
+              </div>
+              <div style={{ marginTop:14, fontSize:15, color:"var(--t2)", lineHeight:1.7 }}>{result.meaning}</div>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader accent="var(--accent)">Examples</CardHeader>
+            <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:8 }}>
+              {result.examples?.map((ex,i) => (
+                <div key={i} style={{ display:"flex", gap:10 }}>
+                  <span style={{ color:"var(--t3)", fontSize:12, marginTop:2, minWidth:16 }}>{i+1}.</span>
+                  <span style={{ fontSize:14, color:"var(--green)", fontStyle:"italic", lineHeight:1.5 }}>"{ex}"</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div style={{ display:"flex", gap:10 }}>
+            {result.synonyms?.length > 0 && (
+              <Card style={{ flex:1 }}>
+                <CardHeader accent="var(--green)">Similar Words</CardHeader>
+                <div style={{ padding:"10px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+                  {result.synonyms.map((s,i) => (
+                    <button key={i} onClick={()=>search(s)} style={{ background:"var(--green-dim)", border:"1px solid rgba(52,211,153,0.2)", borderRadius:8, padding:"6px 10px", color:"var(--green)", fontSize:13, cursor:"pointer", fontFamily:"var(--font)", textAlign:"left" }}>→ {s}</button>
+                  ))}
+                </div>
+              </Card>
+            )}
+            {result.antonyms?.length > 0 && (
+              <Card style={{ flex:1 }}>
+                <CardHeader accent="var(--red)">Opposites</CardHeader>
+                <div style={{ padding:"10px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+                  {result.antonyms.map((a,i) => (
+                    <button key={i} onClick={()=>search(a)} style={{ background:"var(--red-dim)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:8, padding:"6px 10px", color:"var(--red)", fontSize:13, cursor:"pointer", fontFamily:"var(--font)", textAlign:"left" }}>→ {a}</button>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {result.tip && (
+            <div style={{ background:"var(--accent-dim)", border:"1px solid rgba(240,165,0,0.2)", borderRadius:"var(--radius)", padding:"14px 16px", display:"flex", gap:10 }}>
+              <span>💡</span>
+              <div style={{ fontSize:13, color:"var(--t1)", lineHeight:1.5 }}>{result.tip}</div>
+            </div>
+          )}
+          <Btn variant="ghost" onClick={()=>{setResult(null);setQ("");}} s={{ width:"100%" }}>+ Search another word</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SPEAK TAB ───────────────────────────────────────────────────────────
+function SpeakTab({ apiKey }) {
+  const [mode, setMode] = useState("task");
+  const [task, setTask] = useState(() => SPEAK_TASKS[Math.floor(Math.random()*SPEAK_TASKS.length)]);
+  const [custom, setCustom] = useState("");
+  const [phase, setPhase] = useState("idle");
+  const [heard, setHeard] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [error, setError] = useState("");
+  const recRef = useRef(null);
+
+  const target = mode === "task" ? task.text : custom.trim();
+
+  const speak = (text) => {
+    window.speechSynthesis?.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US"; u.rate = 0.85;
+    setSpeaking(true);
+    u.onend = u.onerror = () => setSpeaking(false);
+    window.speechSynthesis?.speak(u);
+  };
+
+  const record = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setError("Voice recording needs Chrome browser. Open this app in Chrome."); return; }
+    setError(""); setHeard(""); setResult(null);
+    const rec = new SR();
+    rec.lang = "en-US"; rec.interimResults = false;
+    rec.onresult = async (e) => {
+      const text = e.results[0][0].transcript;
+      setHeard(text); setPhase("done"); setLoading(true);
+      try {
+        const r = await callAI(SPEAK_PROMPT, `TARGET: "${target}"\nHEARD: "${text}"`, apiKey);
+        setResult(r); setPhase("feedback");
+      } catch(e) { setError(e.message === "NO_KEY" ? "⚠️ Please enter your Gemini API key using the ⚙ button (top right)." : e.message === "NOKEY" ? "🔑 Please enter your Gemini API key in the yellow bar at the top." : "❌ " + e.message); setPhase("done"); }
+      finally { setLoading(false); }
+    };
+    rec.onerror = () => { setError("Microphone error. Allow mic permission and try again."); setPhase("idle"); };
+    recRef.current = rec;
+    rec.start(); setPhase("listening");
+  };
+
+  const stop = () => { recRef.current?.stop(); setPhase("idle"); };
+  const reset = () => { setPhase("idle"); setHeard(""); setResult(null); setError(""); };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {/* Mode toggle */}
+      <div style={{ display:"flex", gap:8, background:"var(--s1)", borderRadius:"var(--radius-sm)", padding:4 }}>
+        {[["task","🎯 Daily Task"],["custom","✏️ My Text"]].map(([id,label]) => (
+          <button key={id} onClick={()=>{setMode(id);reset();}} style={{
+            flex:1, padding:"9px", borderRadius:8,
+            background: mode===id ? "var(--s2)" : "transparent",
+            border: mode===id ? "1px solid var(--border2)" : "1px solid transparent",
+            color: mode===id ? "var(--t1)" : "var(--t3)",
+            fontSize:13, fontWeight: mode===id ? 600 : 400, cursor:"pointer", fontFamily:"var(--font)",
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {/* Target */}
+      {mode === "task" ? (
+        <Card>
+          <div style={{ padding:"8px 14px 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <Chip color={task.level==="Easy"?"var(--green)":task.level==="Medium"?"var(--accent)":"var(--red)"} small>{task.level}</Chip>
+            <button onClick={()=>{setTask(SPEAK_TASKS[Math.floor(Math.random()*SPEAK_TASKS.length)]);reset();}} style={{ background:"transparent", border:"none", color:"var(--t3)", fontSize:12, cursor:"pointer", fontFamily:"var(--font)" }}>New ↺</button>
+          </div>
+          <div style={{ padding:"14px 16px 6px" }}>
+            <div style={{ fontSize:18, color:"var(--t1)", lineHeight:1.6, fontWeight:500 }}>"{task.text}"</div>
+          </div>
+          <div style={{ padding:"0 16px 14px", fontSize:12, color:"var(--t3)" }}>Focus: <span style={{ color:"var(--accent)" }}>{task.focus}</span></div>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>Type what you want to practice</CardHeader>
+          <textarea value={custom} onChange={e=>{setCustom(e.target.value);reset();}}
+            placeholder="e.g. Hello, my name is Jay. I am a 3D artist from Ahmedabad."
+            style={{ width:"100%", minHeight:90, background:"transparent", border:"none", outline:"none", padding:"14px 16px", fontSize:15, color:"var(--t1)", resize:"vertical", lineHeight:1.6 }}/>
+        </Card>
+      )}
+
+      {/* Buttons */}
+      {target && (
+        <div style={{ display:"flex", gap:10 }}>
+          <Btn variant="success" onClick={()=>speak(target)} disabled={speaking} s={{ flex:1 }}>
+            {speaking ? "🔊 Playing…" : "🔊 Hear It"}
+          </Btn>
+          {phase !== "listening"
+            ? <Btn onClick={record} disabled={!target} s={{ flex:1 }}>🎤 Record</Btn>
+            : <Btn variant="danger" onClick={stop} s={{ flex:1 }}>⏹ Stop</Btn>
+          }
+        </div>
+      )}
+
+      {phase === "listening" && (
+        <div style={{ background:"var(--red-dim)", border:"1px solid rgba(248,113,113,0.25)", borderRadius:"var(--radius-sm)", padding:"14px 18px", display:"flex", gap:12, alignItems:"center", color:"var(--red)", fontSize:14 }}>
+          <span style={{ fontSize:20, animation:"pulse 0.8s infinite" }}>🎙</span>
+          Listening… Speak clearly!
+        </div>
+      )}
+
+      {error && <div style={{ background:"var(--red-dim)", border:"1px solid rgba(248,113,113,0.25)", borderRadius:"var(--radius-sm)", padding:"12px 14px", color:"var(--red)", fontSize:13 }}>{error}</div>}
+
+      {heard && (
+        <Card>
+          <CardHeader>🎙 What I heard</CardHeader>
+          <div style={{ padding:"14px 16px", fontSize:15, color:"var(--purple)", fontStyle:"italic" }}>"{heard}"</div>
+        </Card>
+      )}
+
+      {loading && <LoadingCard text="Analyzing your pronunciation…" />}
+
+      {result && !loading && (
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          <Card>
+            <div style={{ padding:"18px", display:"flex", gap:14, alignItems:"center" }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:11, color:"var(--t3)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.07em" }}>Feedback</div>
+                <div style={{ fontSize:15, color:"var(--t1)", lineHeight:1.5, fontStyle:"italic" }}>"{result.praise}"</div>
+              </div>
+              <ScoreRing score={result.score} />
+            </div>
+          </Card>
+
+          {result.perfect && (
+            <div style={{ background:"var(--green-dim)", border:"1px solid rgba(52,211,153,0.3)", borderRadius:"var(--radius)", padding:"18px", textAlign:"center" }}>
+              <div style={{ fontSize:28, marginBottom:6 }}>🎉</div>
+              <div style={{ fontSize:15, color:"var(--green)", fontWeight:600 }}>Perfect! Keep going!</div>
+            </div>
+          )}
+
+          {result.issues?.length > 0 && (
+            <Card>
+              <CardHeader accent="var(--accent)">Where to improve</CardHeader>
+              <div style={{ padding:"12px", display:"flex", flexDirection:"column", gap:10 }}>
+                {result.issues.map((iss,i) => (
+                  <div key={i} style={{ background:"var(--bg)", borderRadius:"var(--radius-sm)", padding:"12px 14px", borderLeft:"3px solid var(--accent)" }}>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8, alignItems:"center" }}>
+                      <span style={{ fontSize:12, background:"var(--red-dim)", color:"var(--red)", padding:"2px 10px", borderRadius:20 }}>Heard: "{iss.heard}"</span>
+                      <span style={{ color:"var(--t3)", fontSize:11 }}>→</span>
+                      <span style={{ fontSize:12, background:"var(--green-dim)", color:"var(--green)", padding:"2px 10px", borderRadius:20 }}>Should be: "{iss.expected}"</span>
+                    </div>
+                    <div style={{ fontSize:13, color:"var(--t2)", lineHeight:1.5, marginBottom:8 }}>{iss.tip}</div>
+                    <button onClick={()=>speak(iss.expected)} style={{ background:"var(--green-dim)", border:"1px solid rgba(52,211,153,0.2)", borderRadius:6, padding:"4px 10px", color:"var(--green)", fontSize:11, cursor:"pointer", fontFamily:"var(--font)" }}>🔊 Hear correct</button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {result.tip && (
+            <div style={{ background:"var(--accent-dim)", border:"1px solid rgba(240,165,0,0.2)", borderRadius:"var(--radius)", padding:"14px 16px", display:"flex", gap:10 }}>
+              <span>💡</span>
+              <div style={{ fontSize:13, color:"var(--t1)", lineHeight:1.5 }}>{result.tip}</div>
+            </div>
+          )}
+
+          <div style={{ display:"flex", gap:8 }}>
+            <Btn variant="ghost" onClick={reset} s={{ flex:1 }}>🔄 Try Again</Btn>
+            {mode==="task" && <Btn variant="ghost" onClick={()=>{setTask(SPEAK_TASKS[Math.floor(Math.random()*SPEAK_TASKS.length)]);reset();}} s={{ flex:1 }}>Next Task →</Btn>}
+          </div>
+        </div>
+      )}
+
+      {/* Sound tips */}
+      <div style={{ marginTop:8 }}>
+        <div style={{ fontSize:11, color:"var(--t3)", marginBottom:10, textTransform:"uppercase", letterSpacing:"0.07em" }}>Common Mistakes to Fix</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {SOUND_TIPS.map((s,i) => (
+            <div key={i} style={{ background:"var(--s1)", borderRadius:"var(--radius-sm)", padding:"12px 14px", borderLeft:`3px solid ${s.color}`, border:`1px solid var(--border)`, borderLeftWidth:3, borderLeftColor:s.color }}>
+              <div style={{ fontSize:12, color:s.color, fontWeight:600, marginBottom:4 }}>{s.sound}</div>
+              <div style={{ fontSize:12, color:"var(--t2)", marginBottom:4 }}>{s.wrong}</div>
+              <div style={{ fontSize:12, color:"var(--t3)", lineHeight:1.5 }}>{s.tip}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DIARY TAB ───────────────────────────────────────────────────────────
+function TenseCard({ t }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background:"var(--s1)", borderRadius:"var(--radius)", overflow:"hidden", border:`1px solid ${open ? t.color+"50" : "var(--border)"}`, transition:"border-color 0.2s" }}>
+      <button onClick={()=>setOpen(o=>!o)} style={{ width:"100%", background:"transparent", border:"none", padding:"16px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", textAlign:"left", fontFamily:"var(--font)" }}>
+        <div style={{ width:10, height:10, borderRadius:"50%", background:t.color, flexShrink:0 }}/>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:15, color:"var(--t1)", fontWeight:600 }}>{t.name}</div>
+          <div style={{ fontSize:12, color:"var(--t3)", marginTop:2 }}>{t.use}</div>
+        </div>
+        <span style={{ color:"var(--t3)", fontSize:12 }}>{open?"▲":"▼"}</span>
+      </button>
+      {open && (
+        <div style={{ padding:"0 16px 16px", borderTop:`1px solid ${t.color}25` }}>
+          <div style={{ background:"var(--bg)", borderRadius:"var(--radius-sm)", padding:"10px 14px", margin:"14px 0", borderLeft:`3px solid ${t.color}` }}>
+            <div style={{ fontSize:10, color:"var(--t3)", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Structure</div>
+            <div style={{ fontSize:13, color:t.color, fontFamily:"monospace" }}>{t.structure}</div>
+          </div>
+          {[["✅ Positive",t.pos,"var(--green)","var(--green-dim)"],["❌ Negative",t.neg,"var(--red)","var(--red-dim)"],["❓ Question",t.q,"var(--blue)","var(--blue-dim)"]].map(([label,items,col,bg]) => (
+            <div key={label} style={{ marginBottom:12 }}>
+              <div style={{ fontSize:11, color:"var(--t3)", marginBottom:6 }}>{label}</div>
+              {items.map((ex,j) => <div key={j} style={{ fontSize:13, color:col, background:bg, padding:"6px 12px", borderRadius:6, marginBottom:4, fontStyle:"italic" }}>"{ex}"</div>)}
+            </div>
+          ))}
+          <div style={{ marginTop:4 }}>
+            <div style={{ fontSize:11, color:"var(--t3)", marginBottom:8 }}>🔑 Signal words</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {t.keys.map((k,j) => <Chip key={j} color={t.color} small>{k}</Chip>)}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiaryTab() {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+        <div style={{ fontFamily:"'DM Serif Display'", fontSize:26, color:"var(--t1)" }}>Grammar Diary</div>
+        <div style={{ fontSize:13, color:"var(--t3)", marginTop:4 }}>Tap any tense to open it</div>
+      </div>
+      {TENSES.map((t,i) => <TenseCard key={i} t={t} />)}
+    </div>
+  );
+}
+
+// ─── TIPS TAB ────────────────────────────────────────────────────────────
+function TipsTab() {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+      <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+        <div style={{ fontFamily:"'DM Serif Display'", fontSize:26, color:"var(--t1)" }}>Quick Rules</div>
+        <div style={{ fontSize:13, color:"var(--t3)", marginTop:4 }}>Learn one rule per day</div>
+      </div>
+      {TIPS.map((t,i) => (
+        <Card key={i}>
+          <div style={{ padding:"16px", display:"flex", gap:14 }}>
+            <div style={{ fontSize:22, lineHeight:1 }}>{t.icon}</div>
+            <div>
+              <div style={{ fontSize:14, fontWeight:600, color:"var(--t1)", marginBottom:6 }}>{t.title}</div>
+              <div style={{ fontSize:13, color:"var(--t2)", lineHeight:1.5, marginBottom:8 }}>{t.body}</div>
+              <div style={{ fontSize:12, color:"var(--accent)", background:"var(--accent-dim)", padding:"5px 12px", borderRadius:6, display:"inline-block", fontStyle:"italic" }}>e.g. {t.ex}</div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ─── LOADING CARD ────────────────────────────────────────────────────────
+function LoadingCard({ text }) {
+  return (
+    <Card>
+      <div style={{ padding:"20px 18px", display:"flex", gap:12, alignItems:"center", color:"var(--t3)", fontSize:14 }}>
+        <span style={{ animation:"spin 1s linear infinite", display:"inline-block", fontSize:18 }}>⟳</span>
+        {text}
+      </div>
+    </Card>
+  );
+}
+
+// ─── SETUP SCREEN ────────────────────────────────────────────────────────
+function SetupScreen({ onDone }) {
+  const [key, setKey] = useState("");
+  return (
+    <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center", padding:"32px 24px", gap:24 }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:52, marginBottom:16 }}>✏️</div>
+        <div style={{ fontFamily:"'DM Serif Display'", fontSize:32, color:"var(--t1)", lineHeight:1.2 }}>English Coach</div>
+        <div style={{ fontSize:14, color:"var(--t3)", marginTop:8 }}>Your personal AI English learning companion</div>
+      </div>
+      <Card>
+        <div style={{ padding:"20px" }}>
+          <div style={{ fontSize:13, fontWeight:600, color:"var(--t1)", marginBottom:6 }}>Anthropic API Key</div>
+          <div style={{ fontSize:12, color:"var(--t3)", marginBottom:12, lineHeight:1.5 }}>
+            Get a free key at <span style={{ color:"var(--accent)" }}>aistudio.google.com</span><br/>
+            Sign in with Google → click "Get API Key" → Create → Copy. 100% free, no credit card!
+          </div>
+          <input value={key} onChange={e=>setKey(e.target.value)} type="password"
+            placeholder="sk-ant-... (or leave empty in Claude.ai)"
+            style={{ width:"100%", background:"var(--bg)", border:"1px solid var(--border2)", borderRadius:"var(--radius-sm)", padding:"12px 14px", fontSize:14, color:"var(--t1)", outline:"none" }}/>
+        </div>
+      </Card>
+      <Btn onClick={()=>onDone(key)} s={{ width:"100%", padding:"16px", fontSize:15 }}>
+        Start Learning →
+      </Btn>
+      <div style={{ fontSize:11, color:"var(--t3)", textAlign:"center", lineHeight:1.6 }}>
+        🔒 Your key is stored only on your device.<br/>It is never sent anywhere except to Anthropic.
+      </div>
+    </div>
+  );
+}
+
+// ─── BOTTOM NAV ─────────────────────────────────────────────────────────
+const TABS = [
+  { id:"practice", icon:"✍️", label:"Practice" },
+  { id:"search",   icon:"🔍", label:"Meaning" },
+  { id:"speak",    icon:"🎤", label:"Speak" },
+  { id:"diary",    icon:"📖", label:"Diary" },
+  { id:"tips",     icon:"💡", label:"Tips" },
+];
+
+// ─── APP ROOT ────────────────────────────────────────────────────────────
+function App() {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("gkey") || "");
+  const [keyInput, setKeyInput] = useState("");
+  const [ready, setReady] = useState(true);
+  useEffect(() => { if (apiKey) window._GEMINI_KEY = apiKey; }, [apiKey]);
+  const [tab, setTab] = useState("practice");
+
+  const handleSetup = (key) => {
+    if (!key.trim()) { alert("Please enter your Gemini API key first!"); return; }
+    localStorage.setItem("ec_key", key.trim());
+    setApiKey(key.trim());
+    setReady(true);
+  };
+
+  if (!ready) return (
+    <div style={{ height:"100%", background:"var(--bg)", overflowY:"auto" }}>
+      <SetupScreen onDone={handleSetup}/>
+    </div>
+  );
+
+  if (!apiKey) return (
+    <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center", padding:"32px 24px", gap:24, background:"var(--bg)" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>🔑</div>
+        <div style={{ fontSize:22, fontWeight:700, color:"var(--t1)", marginBottom:8 }}>API Key Missing</div>
+        <div style={{ fontSize:14, color:"var(--t3)", lineHeight:1.6 }}>Tap the ⚙ button (top right) to enter your Gemini API key.</div>
+      </div>
+      <div style={{ background:"var(--s1)", border:"1px solid var(--border)", borderRadius:16, padding:"16px 20px" }}>
+        <div style={{ fontSize:13, color:"var(--t2)", lineHeight:1.8 }}>
+          1. Go to <span style={{ color:"var(--accent)" }}>aistudio.google.com</span><br/>
+          2. Sign in with Google<br/>
+          3. Click <strong style={{color:"var(--t1)"}}>Get API Key → Create API Key</strong><br/>
+          4. Copy and paste it using the ⚙ button above
+        </div>
+      </div>
+      <button onClick={()=>{ localStorage.removeItem("ec_key"); setApiKey(""); setKeyInput(""); setReady(false); }} style={{ background:"linear-gradient(135deg,#f0a500,#c87d00)", border:"none", borderRadius:12, padding:"16px", color:"#1a0e00", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+        ⚙ Enter API Key
+      </button>
+    </div>
+  );
+
+  const content = {
+    practice: <PracticeTab apiKey={apiKey}/>,
+    search:   <SearchTab apiKey={apiKey}/>,
+    speak:    <SpeakTab apiKey={apiKey}/>,
+    diary:    <DiaryTab/>,
+    tips:     <TipsTab/>,
+  }[tab];
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:"var(--bg)" }}>
+      {/* Header */}
+      <div style={{ padding:"16px 20px 12px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid var(--border)", background:"var(--s1)", flexShrink:0 }}>
+        <div style={{ width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,#f0a500,#c87d00)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>✏️</div>
+        <div>
+          <div style={{ fontSize:16, fontWeight:700, color:"var(--t1)", lineHeight:1 }}>English Coach</div>
+          <div style={{ fontSize:11, color:"var(--t3)", marginTop:2 }}>AI-powered learning</div>
+        </div>
+        <button onClick={()=>{ localStorage.removeItem("ec_key"); setApiKey(""); setKeyInput(""); setReady(false); }} style={{ marginLeft:"auto", background:"transparent", border:"none", color:"var(--t3)", fontSize:11, cursor:"pointer", fontFamily:"var(--font)" }}>⚙</button>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex:1, overflowY:"auto", padding:"18px 16px", paddingBottom:"calc(72px + var(--safe-bottom))" }}>
+        {content}
+      </div>
+
+      {/* Bottom nav */}
+      <div style={{
+        position:"fixed", bottom:0, left:0, right:0,
+        background:"var(--s1)", borderTop:"1px solid var(--border)",
+        display:"flex", paddingBottom:"var(--safe-bottom)",
+      }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{
+            flex:1, padding:"10px 4px 8px", background:"transparent", border:"none",
+            display:"flex", flexDirection:"column", alignItems:"center", gap:3,
+            cursor:"pointer", fontFamily:"var(--font)",
+            borderTop: tab===t.id ? "2px solid var(--accent)" : "2px solid transparent",
+          }}>
+            <span style={{ fontSize:18, lineHeight:1 }}>{t.icon}</span>
+            <span style={{ fontSize:10, fontWeight:600, color: tab===t.id ? "var(--accent)" : "var(--t3)", letterSpacing:"0.04em" }}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── STYLES ──────────────────────────────────────────────────────────────
+const styleEl = document.createElement("style");
+styleEl.textContent = `
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+`;
+document.head.appendChild(styleEl);
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
